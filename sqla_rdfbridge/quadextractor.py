@@ -348,7 +348,7 @@ class ClassPatternExtractor(with_metaclass(ABCMeta, object)):
                 # in this case, make sure superclass is in aliases.
                 c = self.add_superclass_path(c, sqla_cls, alias_maker)
             if 'rdf' in getattr(c, 'info', ()):
-                from virtuoso.mapping import QuadMapPattern
+                from .mapping import QuadMapPattern
                 qmp = c.info['rdf']
                 if isinstance(qmp, QuadMapPattern):
                     qmp = self.qmp_with_defaults(
@@ -400,7 +400,7 @@ class ClassPatternExtractor(with_metaclass(ABCMeta, object)):
         in_graph.add_pattern(cls, qmp)
 
     def gather_conditions(self, quadmap, alias_maker, for_graph):
-        from virtuoso.mapping import ApplyFunction
+        from .mapping import ApplyFunction
         for term_index in ('subject', 'predicate', 'object', 'graph_name'):
             term = getattr(quadmap, term_index)
             if isinstance(term, ApplyFunction):
