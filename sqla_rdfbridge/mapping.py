@@ -1,3 +1,5 @@
+from builtins import zip
+from builtins import object
 import re
 from collections import OrderedDict
 
@@ -64,7 +66,7 @@ class Mapping(object):
                     raise TypeError(
                         "{0}.{1} is not a column".format(cls, arg))
                 return arg
-            included = [cls for cls in classes.itervalues()
+            included = [cls for cls in classes.values()
                         if getattr(cls, arg, None)]
             if not len(included):
                 raise AttributeError(
@@ -191,7 +193,7 @@ class PatternIriClass(IriClass):
         self.pattern = pattern
         self.varnames = [arg[0] for arg in args]
         self.vars = OrderedDict((arg[0:2] for arg in args))
-        for k, v in self.vars.iteritems():
+        for k, v in self.vars.items():
             if not isinstance(v, TypeEngine):
                 assert isinstance(v, type) and TypeEngine in v.mro()
                 self.vars[k] = v()
@@ -236,7 +238,7 @@ class PatternIriClass(IriClass):
             "The iri does not match " + self.pattern
         vals = [int(v) if self.is_int[p] else v
                 for p, v in enumerate(r.groups())]
-        return dict(zip(self.varnames, vals))
+        return dict(list(zip(self.varnames, vals)))
 
     def __eq__(self, other):
         if self.__class__ != other.__class__:

@@ -1,4 +1,7 @@
 from __future__ import print_function
+from builtins import next
+from builtins import str
+from builtins import object
 from abc import ABCMeta, abstractmethod
 from itertools import chain, islice
 from rdflib.term import Identifier
@@ -112,7 +115,7 @@ class DeferredPath(object):
 
 
 def _sig(condition):
-    return unicode(condition.compile(
+    return str(condition.compile(
         compile_kwargs={"literal_binds": True}))
 
 
@@ -165,7 +168,7 @@ def simple_iri_accessor(sqla_cls):
 
 
 def _get_class_from_table(table, class_registry):
-    for cls in class_registry.itervalues():
+    for cls in class_registry.values():
         if isinstance(cls, type) and inspect(cls).local_table == table:
             # return highest such class.
             for supercls in cls.mro():
@@ -220,7 +223,7 @@ class ClassPatternExtractor(with_metaclass(ABCMeta, object)):
         return []
 
     def get_alias_makers(self):
-        return self.alias_makers_by_sig.itervalues()
+        return iter(self.alias_makers_by_sig.values())
 
     def get_subject_pattern(self, sqla_cls, alias_maker=None):
         try:
@@ -570,7 +573,7 @@ class ConditionSet(object):
 
     def clone(self):
         # Shallow clone
-        return ConditionSet(self._conditions.values())
+        return ConditionSet(list(self._conditions.values()))
 
     def update(self, other):
         self._conditions.update(other._conditions)
@@ -584,7 +587,7 @@ class ConditionSet(object):
             return
         elif isinstance(conditions, ConditionSet):
             # this should not happen...
-            for c in conditions._conditions.itervalues():
+            for c in conditions._conditions.values():
                 self.add_condition(c)
         else:
             self.add_condition(conditions)
@@ -597,7 +600,7 @@ class ConditionSet(object):
 
     def __str__(self):
         if self._sig is None:
-            sigs = self._conditions.keys()
+            sigs = list(self._conditions.keys())
             sigs.sort()
             self._sig = ' AND '.join(sigs)
         return self._sig
@@ -605,15 +608,15 @@ class ConditionSet(object):
     @property
     def condition(self):
         if self._conditions:
-            return and_(*self._conditions.values())
+            return and_(*list(self._conditions.values()))
 
     def as_list(self):
-        return self._conditions.values()
+        return list(self._conditions.values())
 
     def __hash__(self):
         return hash(str(self))
 
-    def __nonzero__(self):
+    def __bool__(self):
         return bool(self._conditions)
 
     def __cmp__(self, other):
@@ -785,7 +788,7 @@ class AliasMaker(GroundedPath):
 
     def adapter(self):
         adapter = None
-        for alias in self.aliases_by_path.itervalues():
+        for alias in self.aliases_by_path.values():
             adapter = ORMAdapter(alias).chain(adapter)
         return adapter
 
@@ -812,7 +815,7 @@ class AliasMaker(GroundedPath):
                 return getattr(self.aliases_by_name[parent.entity.get_name()],
                                column.key)
             column = getattr(column._parententity.c, column.key)
-        for alias in self.aliases_by_path.itervalues():
+        for alias in self.aliases_by_path.values():
             # TODO: What if there's many?
             if inspect(alias).mapper.local_table == column.table:
                 return getattr(alias, column.key)
@@ -831,7 +834,7 @@ class AliasMaker(GroundedPath):
                 r = getattr(relationship._parententity.relationships, relationship.key, None)
             assert r
             relationship = r
-        for alias in self.aliases_by_path.itervalues():
+        for alias in self.aliases_by_path.values():
             # TODO: What if there's many?
             if inspect(alias).mapper.local_table == relationship.table:
                 return alias
@@ -858,7 +861,7 @@ class AliasMaker(GroundedPath):
     def alias_from_class(self, cls, col_key=None, add_conditions=False):
         if cls == self.root_cls:
             return self.base_alias
-        aliases = [a for a in self.aliases_by_path.itervalues()
+        aliases = [a for a in self.aliases_by_path.values()
                    if issubclass(a.get_class(), cls)]
         if len(aliases):
             aliases.sort(key=lambda a: (a.path.len_no_super(), len(a.path)))
@@ -885,7 +888,7 @@ class AliasMaker(GroundedPath):
                 self.add_conditions(inherit_conditions)
             return alias
         # otherwise guess natural join
-        known_aliases = self.aliases_by_path.values()
+        known_aliases = list(self.aliases_by_path.values())
         known_aliases.sort(key=lambda a: a.path.len_no_super())
         last_len = -1
         found_paths = []
@@ -990,15 +993,15 @@ class AliasMaker(GroundedPath):
             self.root_cls, self.cpe, self.parent, self.path[:],
             self.conditions)
         clone.aliases_by_path.update({
-            k: v for (k, v) in self.aliases_by_path.iteritems()
+            k: v for (k, v) in self.aliases_by_path.items()
             if v != self.base_alias
         })
         clone.aliases_by_name.update({
-            k: v for (k, v) in self.aliases_by_name.iteritems()
+            k: v for (k, v) in self.aliases_by_name.items()
             if v != self.base_alias
         })
         conditions = {p: clone.aliased_term(c)
-                      for p, c in self.conditions._conditions.iteritems()}
+                      for p, c in self.conditions._conditions.items()}
         clone.conditions._conditions.update(conditions)
         return clone
 
@@ -1010,7 +1013,7 @@ class AliasMaker(GroundedPath):
 
     @property
     def aliases(self):
-        return self.aliases_by_path.itervalues()
+        return iter(self.aliases_by_path.values())
 
     def __len__(self):
         return 1   # overshadow grounded path truth value
@@ -1024,13 +1027,13 @@ class AliasSet(AliasMaker):
             orig.root_cls, orig.cpe, orig.parent, orig.path)
         # ALSO: Replace aliases in conditions with frozen versions
         self.aliases_by_name[orig.base_alias.get_name()] = self.base_alias
-        for path, alias in orig.aliases_by_path.iteritems():
+        for path, alias in orig.aliases_by_path.items():
             if not len(path):
                 continue  # We already have base_alias
             # use old names
             self.add_alias(alias.freeze(uid), alias.get_name())
         conditions = {p: self.aliased_term(c)
-                      for p, c in orig.conditions._conditions.iteritems()}
+                      for p, c in orig.conditions._conditions.items()}
         self.conditions._conditions.update(conditions)
 
     def adapter(self):
